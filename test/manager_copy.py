@@ -1,17 +1,19 @@
 # -*- coding: utf-8 -*-
+import json
+import random
+import time
 import pdfplumber
 from flask import request, jsonify, send_from_directory
 from flask_migrate import MigrateCommand
-# from flask_restful import reqparse
+from flask_restful import reqparse
 from flask_script import Manager
 from pptx import Presentation
+from qiniu import Auth, put_data
 from App import create_app
-# from utrils.aliyunsms.sms_send import send_sms
+from utrils.aliyunsms.sms_send import send_sms
 import os
 import shutil
 from xlrd import open_workbook
-from pydocx import PyDocX
-import pdfkit
 
 app = create_app('develop')
 manager = Manager(app=app)
@@ -41,16 +43,25 @@ def upload_qiniu():
         print('ppt页数',page)
 
     elif f_name == 'doc' or f_name == 'docx' or f_name == 'DOC' or f_name == 'DOCX':
-        #.docx文件转成html文件
-        html = PyDocX.to_html('./file/{}'.format(file_name))
-        f = open('./file/test.html', 'w', encoding="utf-8")
-        f.write(html)
-        f.close()
-        #把html文件转成pdf文件
-        pdfkit.from_file('./file/test.html', './file/test.pdf')
-        f = pdfplumber.open('./file/test.pdf')
-        page = len(f.pages)
-        print('pdf页数：', page)
+        # Word转pdf
+        # path = './file/{}'.format(file_name)
+        # pdf_path = path.replace('doc', 'pdf')
+        # w = client.CreateObject("Word.Application")
+        # doc = w.Documents.Open(path)
+        # doc.ExportAsFixedFormat(pdf_path, 17)
+        # doc.Close()
+        # w.Quit()
+        # print(doc)
+
+        # def excel_pdf(self, path):
+        #     # Excel转pdf
+        #     pdf_path = path.replace('xls', 'pdf')
+        #     xlApp = client.CreateObject("Excel.Application")
+        #     books = xlApp.Workbooks.Open(path)
+        #     books.ExportAsFixedFormat(0, pdf_path)
+        #     xlApp.Quit()
+
+        page = 0
 
     elif f_name == 'xlsx' or f_name == 'xls' or f_name == 'XLSX' or f_name == 'XLS' or f_name == 'csv' or f_name == 'CSV':
         # 读取Excel文件名
@@ -91,25 +102,53 @@ def upload_qiniu():
         print("Directory: " + filePath + " was removed!")
     return jsonify(page)
 
+    # 需要填写你的 Access Key 和 Secret Key
+    # ak = "x8Wiq7iIUk3mZnuKDG2A5y14HLIHieMYZK3UsJJT"
+    # sk = "sYQit3y31B9VIL-vQkUho9toQn0noLcf-UFihcQZ"
+    # 构建鉴权对象
+    # q = Auth(ak, sk)
+    # 要上传的空间
+    # bucket_name = 'cloudprint'
+    # 上传到七牛后保存的文件名
+    # key = 'printer' + '/' + 'files' + '/' + fileName
 
-# @app.route("/sendsms", methods=["POST"])
-# def sms_captcha():
-#     parser = reqparse.RequestParser()
-#     parser.add_argument(name='phone', type=str)
-#     parse = parser.parse_args()
-#     phone = parse.get('phone')
-#     str = ""
-#     for i in range(6):
-#         ch = chr(random.randrange(ord('0'), ord('9') + 1))
-#         str += ch
-#     print(str)
-#     params = {'code':str} #abcd就是发发送的验证码，code就是模板中定义的变量
-#     result = send_sms(phone, json.dumps(params))
-#     print(result)
-#     if result:
-#         return jsonify(params)
-#     else:
-#         return '发送失败'
+    # 生成上传 Token，可以指定过期时间等
+    # token = q.upload_token(bucket_name, key, 3600)
+    # ret, info = put_data(token, key, data=fp.read())
+
+    # policy = {}
+
+    # 3600为token过期时间，秒为单位。3600等于一小时
+    # token = q.upload_token(bucket_name, key, 3600, policy)
+
+    # print(token)
+
+    # 如果上传成功
+    # if info.status_code == 200:
+    #     数据库保存该地址
+        # img_url = "http://pqcxj2nyo.bkt.clouddn.com/" + ret.get("key") #七牛云域名（注意：CNAME一定要配置）
+        # print(img_url)
+    # return jsonify(token)
+
+
+@app.route("/sendsms", methods=["POST"])
+def sms_captcha():
+    parser = reqparse.RequestParser()
+    parser.add_argument(name='phone', type=str)
+    parse = parser.parse_args()
+    phone = parse.get('phone')
+    str = ""
+    for i in range(6):
+        ch = chr(random.randrange(ord('0'), ord('9') + 1))
+        str += ch
+    print(str)
+    params = {'code':str} #abcd就是发发送的验证码，code就是模板中定义的变量
+    result = send_sms(phone, json.dumps(params))
+    print(result)
+    if result:
+        return jsonify(params)
+    else:
+        return '发送失败'
 
 
 if __name__ == '__main__':

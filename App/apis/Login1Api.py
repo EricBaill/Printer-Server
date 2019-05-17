@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 # -*- coding: utf-8 -*-
 import logging
-# from WXBizDataCrypt import WXBizDataCrypt
 from flask import jsonify
 from flask_restful import Resource, reqparse
 import requests
@@ -10,10 +9,10 @@ from App.models import User, db
 
 logger = logging.getLogger('Weixin')
 
-
 import base64
 import json
 from Crypto.Cipher import AES
+
 
 class WXBizDataCrypt:
     def __init__(self, appId, sessionKey):
@@ -29,6 +28,7 @@ class WXBizDataCrypt:
         cipher = AES.new(sessionKey, AES.MODE_CBC, iv)
 
         decrypted = json.loads(self._unpad(cipher.decrypt(encryptedData)))
+        print(decrypted)
 
         if decrypted['watermark']['appid'] != self.appId:
             raise Exception('Invalid Buffer')
@@ -71,33 +71,32 @@ class WXBizDataCrypt:
 #             print(data)
 #             return jsonify(data)
 
-class Login2(Resource):
+
+class Login_(Resource):
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument(name='encryptedData', type=str)
         parser.add_argument(name='iv', type=str)
         parser.add_argument(name='code', type=str)
+        parser.add_argument(name='nickName', type=str)
+        parser.add_argument(name='avatarUrl', type=str)
         parse = parser.parse_args()
         encryptedData = parse.get('encryptedData')
         iv = parse.get('iv')
         code = parse.get('code')
-        print(code)
-        print(encryptedData)
-        print(iv)
+        nickName = parse.get('nickName')
+        avatarUrl = parse.get('avatarUrl')
 
-
-        url = 'https://api.weixin.qq.com/sns/jscode2session?appid=wx258b675c4f46471c&secret=f943e7ff9a91d20286523380799961a9&js_code={}&grant_type=authorization_code'.format(
+        url = 'https://api.weixin.qq.com/sns/jscode2session?appid=wx8f8eae4c7f709a50&secret=16e80fdcf5d807af471e2517a1f87b2d&js_code={}&grant_type=authorization_code'.format(
             code)
         response = requests.get(url)
         logger.info('post[%s]=>[%d][%s]' % (
             code, response.status_code, response.text
         ))
-
         resData = response.json()
-        print(resData)
         sessionKey = resData['session_key']
-
-        appId = 'wx258b675c4f46471c'
+        openid = resData['openid']
+        appId = 'wx8f8eae4c7f709a50'
         sessionKey = sessionKey
         encryptedData = encryptedData
         iv = iv
@@ -121,6 +120,9 @@ class Login2(Resource):
         else:
             user = User()
             user.unionid = unionid
+            user.openid = openid
+            user.nickname = nickName
+            user.head_img = avatarUrl
             db.session.add(user)
             db.session.commit()
             u1 = User.query.filter(User.unionid == unionid).first()
